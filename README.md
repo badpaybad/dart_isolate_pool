@@ -11,25 +11,46 @@ and the Flutter guide for
 [developing packages and plugins](https://flutter.dev/developing-packages).
 -->
 
-TODO: Put a short description of the package here that helps potential users
-know whether this package might be useful for them.
+To prevent create a lot of Isolate dart, Just create Isolate as worker, number of workers max by cpu count, when it free use it for invoke action
 
 ## Features
 
-TODO: List what your package can do. Maybe include images, gifs, or videos.
+- Just wrap Isolate with simple way to use eg: 
+
+```dart
+    Future<void> doIt(
+    {required dynamic dataToDo,
+    required Future<dynamic> Function(dynamic) doInBackground,
+    Future<void> Function(dynamic)? onResult}) async {}
+```
 
 ## Getting started
 
-TODO: List prerequisites and provide or point to information on how to
-start using the package.
-
+```dart
+                import 'package:dart_isolate_pool/shelf.dart';
+```
 ## Usage
 
 TODO: Include short and useful examples for package users. Add longer examples
 to `/example` folder.
 
 ```dart
-const like = 'sample';
+                IsolatePoolServe.instance.doIt(
+                dataToDo: [1,"a",[3.4, 0.5]],
+                doInBackground: (dataIn) async {
+                print("doIt first time: $dataIn");
+                int int1 = dataIn[0];
+                String str2 = dataIn[1];
+                List<double> lst3 = dataIn[2];
+                lst3.add(int1.toDouble());
+                await Future.delayed(const Duration(seconds: 1)); //fake long process
+                return ["done", lst3]; //should be do sth return as dataOut
+                },
+                onResult: (dataOut) async {
+                var msg = dataOut[0];
+                var lstres = dataOut[1];
+                print("onResult: $dataOut");
+                });
 ```
 
 ## Additional information
