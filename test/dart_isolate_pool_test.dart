@@ -4,7 +4,7 @@ import 'package:dart_isolate_pool/shelf.dart';
 
 Future<void> main() async {
   //var isolateSingle= IsolateSingleServe();
-  IsolatePoolServe.instance.doIt(
+  IsolatePoolServe.instance.doOnce(
       dataToDo: [
         1,
         "a",
@@ -26,11 +26,24 @@ Future<void> main() async {
       });
 
   for (var i = 0; i < 300; i++) {
-    IsolatePoolServe.instance.doIt(
+    IsolatePoolServe.instance.doOnce(
         dataToDo: i,
         doInBackground: (dataIn) async {
           print("ddoIt $dataIn and no need handle result, onResult=null");
         });
+  }
+
+  var sendMany = await IsolateSingleServe().withBackgroundFunction((p0) async {
+    print("Send many $p0");
+    await Future.delayed(const Duration(seconds: 1));
+    return p0;
+  }).withOnResultFunction((p0) async {
+    //if mounted setState
+    print("On result $p0");
+  }).initToSendManyDatas();
+
+  for (var i = 0; i < 100; i++) {
+    sendMany.sendData("${DateTime.now()}");
   }
 
   await Future.delayed(const Duration(seconds: 5));

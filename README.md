@@ -45,7 +45,7 @@ TODO: Include short and useful examples for package users. Add longer examples
 to `/example` folder.
 
 ```dart
-    IsolatePoolServe.instance.doIt(
+    IsolatePoolServe.instance.doOnce(
     dataToDo: [1,"a",[3.4, 0.5]],
     doInBackground: (dataIn) async {
     print("doIt first time: $dataIn");
@@ -61,6 +61,23 @@ to `/example` folder.
     var lstres = dataOut[1];
     print("onResult: $dataOut");
     });
+```
+```dart
+
+  var sendMany = await IsolateSingleServe().withBackgroundFunction((p0) async {
+    print("Send many $p0");
+    await Future.delayed(const Duration(seconds: 1));
+    return p0;
+  }).withOnResultFunction((p0) async {
+    //if mounted setState
+    print("On result $p0");
+  }).initToSendManyDatas();
+
+  for (var i = 0; i < 100; i++) {
+    sendMany.sendData("${DateTime.now()}");
+  }
+
+
 ```
 
 ## Additional information
