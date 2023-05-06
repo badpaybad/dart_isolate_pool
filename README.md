@@ -26,8 +26,18 @@ To prevent create a lot of Isolate dart, Just create Isolate as worker, number o
 
 ## Getting started
 
+In pubspec.yaml
+
 ```dart
-                import 'package:dart_isolate_pool/shelf.dart';
+dev_dependencies:
+  dart_isolate_pool:
+    git: https://github.com/badpaybad/dart_isolate_pool.git
+    ref: main
+
+```
+
+```dart
+    import 'package:dart_isolate_pool/shelf.dart';
 ```
 ## Usage
 
@@ -35,26 +45,24 @@ TODO: Include short and useful examples for package users. Add longer examples
 to `/example` folder.
 
 ```dart
-                IsolatePoolServe.instance.doIt(
-                dataToDo: [1,"a",[3.4, 0.5]],
-                doInBackground: (dataIn) async {
-                print("doIt first time: $dataIn");
-                int int1 = dataIn[0];
-                String str2 = dataIn[1];
-                List<double> lst3 = dataIn[2];
-                lst3.add(int1.toDouble());
-                await Future.delayed(const Duration(seconds: 1)); //fake long process
-                return ["done", lst3]; //should be do sth return as dataOut
-                },
-                onResult: (dataOut) async {
-                var msg = dataOut[0];
-                var lstres = dataOut[1];
-                print("onResult: $dataOut");
-                });
+    IsolatePoolServe.instance.doIt(
+    dataToDo: [1,"a",[3.4, 0.5]],
+    doInBackground: (dataIn) async {
+    print("doIt first time: $dataIn");
+    int int1 = dataIn[0];
+    String str2 = dataIn[1];
+    List<double> lst3 = dataIn[2];
+    lst3.add(int1.toDouble());
+    await Future.delayed(const Duration(seconds: 1)); //fake long process
+    return ["done", lst3]; //should be do sth return as dataOut
+    },
+    onResult: (dataOut) async {
+    var msg = dataOut[0];
+    var lstres = dataOut[1];
+    print("onResult: $dataOut");
+    });
 ```
 
 ## Additional information
 
-TODO: Tell users more about the package: where to find more information, how to
-contribute to the package, how to file issues, what response they can expect
-from the package authors, and more.
+Donate me: https://www.paypal.com/paypalme/dunp211284
