@@ -18,7 +18,7 @@ To prevent create a lot of Isolate dart, Just create Isolate as worker, number o
 - Just wrap Isolate with simple way to use eg: 
 
 ```dart
-    Future<void> doIt(
+    Future<void> doOnce(
     {required dynamic dataToDo,
     required Future<dynamic> Function(dynamic) doInBackground,
     Future<void> Function(dynamic)? onResult}) async {}
