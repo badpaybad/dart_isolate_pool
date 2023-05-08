@@ -13,6 +13,10 @@ and the Flutter guide for
 
 To prevent create a lot of Isolate dart, Just create Isolate as worker, number of workers max by cpu count, when it free use it for invoke action
 
+IsolateSingleServe as worker
+
+IsolatePoolServe as manager, who will know which worker is free to do job 
+
 ## Features
 
 - Just wrap Isolate with simple way to use eg: 
