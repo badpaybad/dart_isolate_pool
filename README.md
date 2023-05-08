@@ -108,7 +108,7 @@ import 'package:http/http.dart' as http;
 var imgAiLogo = (await http.get(Uri.parse(
 "https://avatars.githubusercontent.com/u/6204507?v=4")));
 
-DartImage.Image img = DartImage.decodeImage( imgAiLogo.bodyBytes)!;
+//DartImage.Image img = DartImage.decodeImage( imgAiLogo.bodyBytes)!;
 
 IsolatePoolServe.instance.doOnce(
 dataToDo: imgAiLogo.bodyBytes,
