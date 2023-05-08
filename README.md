@@ -64,19 +64,34 @@ to `/example` folder.
 ```
 ```dart
 
-  var sendMany = await IsolateSingleServe().withBackgroundFunction((p0) async {
-    print("Send many $p0");
-    await Future.delayed(const Duration(seconds: 1));
-    return p0;
-  }).withOnResultFunction((p0) async {
-    //if mounted setState
-    print("On result $p0");
-  }).initToSendManyDatas();
 
-  for (var i = 0; i < 100; i++) {
-    sendMany.sendData("${DateTime.now()}");
-  }
+var sendMany =
+    await IsolateSingleServe().withBackgroundFunction((p0, contextDi) async {
+print("Send many args to do in Bg: $p0");
+await Future.delayed(const Duration(seconds: 1));
 
+//use object in DI collection , no need to create new one
+var testObjDI = contextDi["TestObjectResult"];
+
+print("DI-TestObjectResult $testObjDI");
+
+return "$p0 ---- ${DateTime.now()}";
+}).withOnResultFunction((p0) async {
+//if mounted setState
+print("On result $p0");
+}).initSendManyTimes(diBuilder: () async {
+var mapDI = <String, TestObjectResult>{};
+mapDI["TestObjectResult"] = TestObjectResult();
+return mapDI;
+});
+
+for (var i = 0; i < 5; i++) {
+var dataToDoInBg = "sendMany.sendData ${DateTime.now()}";
+print(dataToDoInBg);
+sendMany.sendData(dataToDoInBg);
+}
+
+sendMany.closeSendManyTimes();
 
 ```
 
