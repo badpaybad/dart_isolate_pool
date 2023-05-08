@@ -1,9 +1,10 @@
 //import 'package:flutter_test/flutter_test.dart';
 
+import 'dart:typed_data';
+
 import 'package:dart_isolate_pool/shelf.dart';
 
 Future<void> main() async {
-  //var isolateSingle= IsolateSingleServe();
   IsolatePoolServe.instance.doOnce(
       dataToDo: [
         1,
@@ -11,7 +12,7 @@ Future<void> main() async {
         [3.4, 0.5]
       ],
       doInBackground: (dataIn) async {
-        print("doIt : $dataIn");
+        print("parse args for do in background: $dataIn");
         int int1 = dataIn[0];
         String str2 = dataIn[1];
         List<double> lst3 = dataIn[2];
@@ -22,29 +23,72 @@ Future<void> main() async {
       onResult: (dataOut) async {
         var msg = dataOut[0];
         var lstres = dataOut[1];
-        print("onResult: $dataOut");
+        print("onResult doIt first time: $dataOut");
       });
 
-  for (var i = 0; i < 300; i++) {
+  for (var i = 0; i < 5; i++) {
     IsolatePoolServe.instance.doOnce(
         dataToDo: i,
         doInBackground: (dataIn) async {
-          print("ddoIt $dataIn and no need handle result, onResult=null");
+          print(
+              "${DateTime.now()} doIt 2nd, it will wait 1st doIt $dataIn and no need handle result, onResult=null");
         });
   }
 
-  var sendMany = await IsolateSingleServe().withBackgroundFunction((p0) async {
-    print("Send many $p0");
+  IsolatePoolServe.instance.doOnce(
+      dataToDo: [
+        "dunp",
+        Uint8List.fromList([19, 3, 4])
+      ],
+      doInBackground: (args) async {
+        var testobj = TestObjectResult();
+        testobj.name = "${testobj.name}/added new/$args/";
+        return testobj;
+      },
+      onResult: (res) async {
+        print(res);
+      });
+
+  var sendMany =
+  await IsolateSingleServe().withBackgroundFunction((p0, contextDi) async {
+    print("Send many args to do in Bg: $p0");
     await Future.delayed(const Duration(seconds: 1));
-    return p0;
+
+    //use object in DI collection , no need to create new one
+    var testObjDI = contextDi["TestObjectResult"];
+
+    print("DI-TestObjectResult $testObjDI");
+
+    return "$p0 ---- ${DateTime.now()}";
   }).withOnResultFunction((p0) async {
     //if mounted setState
     print("On result $p0");
-  }).initToSendManyDatas();
+  }).initSendManyTimes(diBuilder: () async {
+    var mapDI = <String, TestObjectResult>{};
+    mapDI["TestObjectResult"] = TestObjectResult();
+    return mapDI;
+  });
 
-  for (var i = 0; i < 100; i++) {
-    sendMany.sendData("${DateTime.now()}");
+  for (var i = 0; i < 5; i++) {
+    var dataToDoInBg = "sendMany.sendData ${DateTime.now()}";
+    print(dataToDoInBg);
+    sendMany.sendData(dataToDoInBg);
   }
 
-  await Future.delayed(const Duration(seconds: 5));
+  sendMany.closeSendManyTimes();
+
+  while (true) {
+    await Future.delayed(const Duration(seconds: 5));
+    print("elapsed ${DateTime.now()}");
+  }
+}
+
+class TestObjectResult {
+  int age = 123;
+  String name = "dunp";
+
+  @override
+  String toString() {
+    return "name: $name age: $age";
+  }
 }
