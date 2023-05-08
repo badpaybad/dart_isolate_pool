@@ -95,6 +95,46 @@ sendMany.closeSendManyTimes();
 
 ```
 
+# use in flutter eg do smth related to image
+
+````dart
+
+import 'package:image/image.dart' as DartImage;
+
+import 'package:http/http.dart' as http;
+...
+
+
+var imgAiLogo = (await http.get(Uri.parse(
+"https://avatars.githubusercontent.com/u/6204507?v=4")));
+
+DartImage.Image img = DartImage.decodeImage( imgAiLogo.bodyBytes)!;
+
+IsolatePoolServe.instance.doOnce(
+dataToDo: imgAiLogo.bodyBytes,
+doInBackground: (dataIn) async {
+var x = DartImage.decodeJpg(Uint8List.fromList(List<int>.from(dataIn)));
+
+var croped = DartImage.copyCrop(x!, x: 10, y: 10, width: 20, height: 20);
+var cropedJpg = DartImage.encodeJpg(croped);
+return Uint8List.fromList(cropedJpg);
+
+}, onResult: (img)async{
+_visionImage = img
+if (mounted) setState(() {});
+});
+
+...
+Image.memory(
+_visionImage!,
+gaplessPlayback: true,
+fit: orient == Orientation.portrait
+? BoxFit.fitWidth
+    : BoxFit.fitHeight,
+)
+  
+````
+
 ## Additional information
 
-Donate me: https://www.paypal.com/paypalme/dunp211284
+Buy me a coffe: https://www.paypal.com/paypalme/dunp211284
