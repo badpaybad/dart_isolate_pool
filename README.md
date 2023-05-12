@@ -101,13 +101,15 @@ sendMany.closeSendManyTimes();
 
 # pub sub Isolate
 
-provide do some thing inside Isolate as background, and work similar pub sub . 
+Provide do some thing inside Isolate as background, and work similar pub sub. 
+Can do as singleton, or init once at void main. 
+So that you can use only one Isolate for all application :) 
 
 ````dart
 
 
   print("--------------------- do publish sub isolate ");
-
+// can do as singleton, or init once at void main. 
   var pubsub = IsolatePubSubServe();
 
   //should do: declare in your initState
