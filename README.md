@@ -117,11 +117,14 @@ print("------- add new DoInBackground, new DiBuilder AfterInit spawn");
 // should register in initState
 await pubsub.AddBackgroundFunction("test2", (args, diCollection) async {
 var diTest2 = diCollection["Test2Di"];
-
+//this func will be called in Isolate.spawn, can reuse class inited in DiBuilderFunction 
+//do your logic need run inside spawn, no UI thread
 return [args, diTest2];
 });
 // should register in initState
 await pubsub.AddDiBuilderFunction("test2", () async {
+  //this func will be called in Isolate.spawn, init class for background function do late. 
+// it just run one time for each topic, no UI thread
 var mapDI = <String, TestObjectResult>{};
 mapDI["Test2Di"] = TestObjectResult();
 return mapDI;
@@ -131,7 +134,8 @@ await pubsub.AddOnResultFunction("test2", (p0) async {
   //UI thread, if mounted setState
 print("Test2 resutl include DI $p0");
 });
-// should call to pass data to bg function do. eg: touch button send data
+// should call to pass data to bg function do. 
+// eg: touch button send data, just support args similar to Isolate sendport.
 await pubsub.Publish("test2", ["a", 1, "b"]);
 
 ````
