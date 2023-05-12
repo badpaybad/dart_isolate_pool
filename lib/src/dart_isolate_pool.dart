@@ -288,6 +288,9 @@ class IsolatePoolServe {
 }
 
 class IsolatePubSubServe {
+  static IsolatePubSubServe instance =
+  IsolatePubSubServe(topicDoIt: "singelton_IsolatePubSubServe");
+
   String _topicDoIt = "DoIt";
   static const String _topicPing = "____ping____";
   StreamSubscription? _mainSubscription;
@@ -332,6 +335,8 @@ class IsolatePubSubServe {
         }
       }
     });
+
+    InitPublish();
   }
 
   _sendData(String topic, dynamic data) async {
@@ -423,14 +428,24 @@ class IsolatePubSubServe {
   final Map<String, Queue<dynamic>> _dataPending = <String, Queue<dynamic>>{};
 
   Future<void> Publish(String topic, dynamic data) async {
+    if (topic.trim() == "") throw Exception("empty topic name");
     if (topic == _topicPing) {
       throw Exception("Invalid topic, should not: $_topicPing");
     }
+    if (topic == _topicAddNewDiBuilder) {
+      throw Exception("Invalid topic, should not: $_topicAddNewDiBuilder");
+    }
+    if (topic == _topicAddNewDoInBackgroundFunction) {
+      throw Exception(
+          "Invalid topic, should not: $_topicAddNewDoInBackgroundFunction");
+    }
+    await _ensureSpawn();
+
+    if (_isDoing == false) throw Exception("Can not publish cause closed");
+
     if (_topicDoBackgrounds.keys.any((element) => element == topic) == false) {
       throw Exception("No Subscrier for topic: $topic");
     }
-
-    if (_isDoing == false) throw Exception("Can not publish cause closed");
 
     if (_dataPending[topic] == null) {
       _dataPending[topic] = Queue<dynamic>();
@@ -438,30 +453,35 @@ class IsolatePubSubServe {
     _dataPending[topic]!.add(data);
   }
 
-  Future<IsolatePubSubServe> AddBgHandleAndOnResult(
-      String topic,
-      Future<dynamic> Function(dynamic, dynamic) doInBackground,
-      Future<void> Function(dynamic) onMessage) async {
-    if (topic == _topicPing) {
-      throw Exception("Invalid topic, should not: $_topicPing");
-    }
-
-    _topicDoBackgrounds[topic] = doInBackground;
-    _topicOnResults[topic] = onMessage;
-    return this;
-  }
+  // Future<IsolatePubSubServe> AddBgHandleAndOnResult(
+  //     String topic,
+  //     Future<dynamic> Function(dynamic, dynamic) doInBackground,
+  //     Future<void> Function(dynamic) onMessage) async {
+  //   if (topic == _topicPing) {
+  //     throw Exception("Invalid topic, should not: $_topicPing");
+  //   }
+  //
+  //   _topicDoBackgrounds[topic] = doInBackground;
+  //   _topicOnResults[topic] = onMessage;
+  //   return this;
+  // }
 
   static const _topicAddNewDoInBackgroundFunction = "__add_do_in_background__";
 
   Future<IsolatePubSubServe> AddBackgroundFunction(String topic,
       Future<dynamic> Function(dynamic, dynamic) doInBackground) async {
+    if (topic.trim() == "") throw Exception("empty topic name");
     if (topic == _topicPing) {
       throw Exception("Invalid topic, should not: $_topicPing");
+    }
+    if (topic == _topicAddNewDiBuilder) {
+      throw Exception("Invalid topic, should not: $_topicAddNewDiBuilder");
     }
     if (topic == _topicAddNewDoInBackgroundFunction) {
       throw Exception(
           "Invalid topic, should not: $_topicAddNewDoInBackgroundFunction");
     }
+    await _ensureSpawn();
 
     _topicDoBackgrounds[topic] = doInBackground;
 
@@ -478,9 +498,19 @@ class IsolatePubSubServe {
 
   Future<IsolatePubSubServe> AddOnResultFunction(
       String topic, Future<void> Function(dynamic) onMessage) async {
+    if (topic.trim() == "") throw Exception("empty topic name");
     if (topic == _topicPing) {
       throw Exception("Invalid topic, should not: $_topicPing");
     }
+    if (topic == _topicAddNewDiBuilder) {
+      throw Exception("Invalid topic, should not: $_topicAddNewDiBuilder");
+    }
+    if (topic == _topicAddNewDoInBackgroundFunction) {
+      throw Exception(
+          "Invalid topic, should not: $_topicAddNewDoInBackgroundFunction");
+    }
+    await _ensureSpawn();
+
     _topicOnResults[topic] = onMessage;
 
     return this;
@@ -490,13 +520,19 @@ class IsolatePubSubServe {
 
   Future<IsolatePubSubServe> AddDiBuilderFunction(
       String topic, Future<Map<String, dynamic>> Function() diBuilder) async {
+    if (topic.trim() == "") throw Exception("empty topic name");
     if (topic == _topicPing) {
       throw Exception("Invalid topic, should not: $_topicPing");
     }
-
     if (topic == _topicAddNewDiBuilder) {
       throw Exception("Invalid topic, should not: $_topicAddNewDiBuilder");
     }
+    if (topic == _topicAddNewDoInBackgroundFunction) {
+      throw Exception(
+          "Invalid topic, should not: $_topicAddNewDoInBackgroundFunction");
+    }
+
+    await _ensureSpawn();
 
     _topicDiBuilder[topic] = diBuilder;
 
@@ -510,12 +546,26 @@ class IsolatePubSubServe {
     return this;
   }
 
+  _ensureSpawn() async {
+    while (_spawned == false) {
+      await Future.delayed(const Duration(microseconds: 1));
+    }
+    while (_insideSendPort == null) {
+      await Future.delayed(const Duration(microseconds: 1));
+    }
+  }
+
+  bool _spawned = false;
+
   Future<IsolatePubSubServe> InitPublish(
       {Map<String, Future<Map<String, dynamic>> Function()>? diBuilder}) async {
     if (diBuilder != null) {
-      if (diBuilder.keys
-          .any((element) => element == _topicPing)) {
-        throw Exception("Invalid topic, should not: $_topicPing");
+      if (diBuilder.keys.any((element) =>
+      element == _topicPing ||
+          element == _topicAddNewDiBuilder ||
+          element == _topicAddNewDoInBackgroundFunction)) {
+        throw Exception(
+            "Invalid topic, should not: $_topicPing , $_topicAddNewDoInBackgroundFunction ,  $_topicAddNewDiBuilder");
       }
     }
 
@@ -526,6 +576,10 @@ class IsolatePubSubServe {
 
     _mainIsolate = await Isolate.spawn(_spawnCall,
         [_mainSendPort!, _topicDoBackgrounds, _topicDiBuilder, _topicDoIt]);
+
+    _spawned = true;
+
+    print("IsolatePubSubServe: $_topicDoIt ready to use");
 
     return this;
   }
