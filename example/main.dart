@@ -75,7 +75,7 @@ Future<void> main() async {
 
   sendMany.closeSendManyTimes();
 
-  print("--------------------- do publish isolate ");
+  print("--------------------- do publish sub isolate ");
 
   var pubsub = IsolatePubSubServe();
 
