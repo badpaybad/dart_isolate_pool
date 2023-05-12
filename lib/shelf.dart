@@ -1,1 +1,1 @@
-export 'src/dart_isolate_pool.dart' show IsolateSingleServe, IsolatePoolServe;
+export 'src/dart_isolate_pool.dart' show IsolateSingleServe, IsolatePoolServe, IsolatePubSubServe;

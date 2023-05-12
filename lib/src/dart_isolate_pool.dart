@@ -286,3 +286,208 @@ class IsolatePoolServe {
     }
   }
 }
+
+class IsolatePubSubServe {
+  String _topicDoIt = "DoIt";
+  static const String _topicPing = "____ping____";
+  StreamSubscription? _mainSubscription;
+  Isolate? _mainIsolate;
+  final ReceivePort _mainReceiver = ReceivePort();
+
+  SendPort? _insideSendPort;
+  SendPort? _mainSendPort;
+
+  static final Map<String, StreamSubscription> _mapInsideSubscription =
+  <String, StreamSubscription>{};
+  static final Map<String, ReceivePort> _mapInsideReceiver =
+  <String, ReceivePort>{};
+
+  IsolatePubSubServe({String topicDoIt = "DoIt"}) {
+    _topicDoIt = "${topicDoIt}_${DateTime.now().microsecondsSinceEpoch}";
+    print("IsolateSingleServe ${_topicDoIt}");
+    _mainSendPort = _mainReceiver.sendPort;
+    _mainSubscription = _mainReceiver.listen((message) async {
+      //print("_mainReceiver.listen: $message");
+      _insideSendPort = _insideSendPort ?? message[0] as SendPort;
+      // use to send data from Main to background to invoke Isolate.spawn ( doInBackground )
+      // _insideSendPort come from _mainSendPort.send, from background by ping topic
+      String topic = message[1];
+      if (topic == _topicPing) return;
+
+      dynamic data = message[2];
+
+      Future<void> Function(dynamic)? onResult = _topicOnResults[topic];
+
+      if (onResult != null) {
+        onResult(data);
+      }
+    });
+
+    _timer = Timer.periodic(const Duration(microseconds: 1), (timer) async {
+      for (var key in _dataPending.keys) {
+        var queue = _dataPending[key];
+        if (queue != null && queue.isNotEmpty) {
+          var itm = queue.removeFirst();
+          _sendData(key, itm);
+        }
+      }
+    });
+  }
+
+  _sendData(String topic, dynamic data) async {
+    while (_insideSendPort == null) {
+      await Future.delayed(const Duration(microseconds: 1));
+    }
+    _insideSendPort!.send([topic, data]);
+  }
+
+  Timer? _timer;
+
+  final Map<String, Future<dynamic> Function(dynamic, dynamic)>
+  _topicDoBackgrounds =
+  <String, Future<dynamic> Function(dynamic, dynamic)>{};
+
+  final Map<String, Future<void> Function(dynamic)> _topicOnResults =
+  <String, Future<void> Function(dynamic)>{};
+
+  Map<String, Future<Map<String, dynamic>> Function()> _topicDiBuilder =
+  <String, Future<Map<String, dynamic>> Function()>{};
+
+  static _spawnCall(
+      dynamic mainSendPort_doInBackgroundWithDi_diBuilder_topicDoIt) async {
+    SendPort mainSendPort =
+    mainSendPort_doInBackgroundWithDi_diBuilder_topicDoIt[0];
+
+    Map<String, Future<dynamic> Function(dynamic, dynamic)>
+    doInBackgroundWithDi =
+    mainSendPort_doInBackgroundWithDi_diBuilder_topicDoIt[1];
+    Map<String, Future<Map<String, dynamic>> Function()> diBuilder =
+    mainSendPort_doInBackgroundWithDi_diBuilder_topicDoIt[2];
+
+    String topicDoit = mainSendPort_doInBackgroundWithDi_diBuilder_topicDoIt[3];
+
+    var insideReceiver = ReceivePort(topicDoit);
+    if (_mapInsideReceiver.containsKey(topicDoit)) {}
+
+    _mapInsideReceiver[topicDoit] = insideReceiver;
+    var insideSendPort = insideReceiver.sendPort;
+
+    Map<String, Map<String, dynamic>> diCollectionByTopic =
+    <String, Map<String, dynamic>>{};
+
+    for (var diFuncKey in diBuilder.keys) {
+      var diFunc = diBuilder[diFuncKey];
+      if (diFunc != null) {
+        diCollectionByTopic[diFuncKey] = await diFunc();
+      }
+    }
+
+    var insideSubscription = insideReceiver.listen((message) async {
+      var topicToProcess = message[0];
+      dynamic dataToProcess = message[1];
+
+      var doInBgOfTopic = doInBackgroundWithDi[topicToProcess];
+      var diCollection =
+      diCollectionByTopic[topicToProcess] ??= <String, dynamic>{};
+
+      var result = await doInBgOfTopic!(dataToProcess, diCollection);
+
+      mainSendPort.send([insideSendPort, topicToProcess, result]);
+    });
+
+    if (_mapInsideSubscription.containsKey(topicDoit)) {}
+    _mapInsideSubscription[topicDoit] = insideSubscription;
+
+    mainSendPort.send([
+      insideSendPort,
+      _topicPing,
+      "_insideSendPort forward to main process, to do send data to do in background"
+    ]);
+  }
+
+  final Map<String, Queue<dynamic>> _dataPending = <String, Queue<dynamic>>{};
+
+  Future<void> Publish(String topic, dynamic data) async {
+    if (topic == _topicPing)
+      throw Exception("Invalid topic, should not: $_topicPing");
+    if (_topicDoBackgrounds.keys.any((element) => element == topic) == false)
+      throw Exception("No Subscrier for topic: $topic");
+
+    if (_isDoing == false) throw Exception("Can not publish cause closed");
+
+    if (_dataPending[topic] == null) {
+      _dataPending[topic] = Queue<dynamic>();
+    }
+    _dataPending[topic]!.add(data);
+  }
+
+  Future<IsolatePubSubServe> AddBgHandleAndOnResult(
+      String topic,
+      Future<dynamic> Function(dynamic, dynamic) doInBackground,
+      Future<void> Function(dynamic) onMessage) async {
+    if (topic == _topicPing)
+      throw Exception("Invalid topic, should not: $_topicPing");
+
+    _topicDoBackgrounds[topic] = doInBackground;
+    _topicOnResults[topic] = onMessage;
+    return this;
+  }
+
+  Future<IsolatePubSubServe> AddBackgroundFunction(String topic,
+      Future<dynamic> Function(dynamic, dynamic) doInBackground) async{
+    if (topic == _topicPing)
+      throw Exception("Invalid topic, should not: $_topicPing");
+    _topicDoBackgrounds[topic] = doInBackground;
+    return this;
+  }
+  Future<IsolatePubSubServe> AddOnResultFunction(String topic,
+      Future<void> Function(dynamic) onMessage) async{
+    if (topic == _topicPing)
+      throw Exception("Invalid topic, should not: $_topicPing");
+    _topicOnResults[topic] = onMessage;
+    return this;
+  }
+  Future<IsolatePubSubServe> InitPublish(
+      {Map<String, Future<Map<String, dynamic>> Function()>? diBuilder}) async {
+    if (diBuilder != null) if (diBuilder.keys
+        .any((element) => element == _topicPing))
+      throw Exception("Invalid topic, should not: $_topicPing");
+
+    _isDoing = true;
+
+    _topicDiBuilder =
+        diBuilder ?? <String, Future<Map<String, dynamic>> Function()>{};
+
+    _mainIsolate = await Isolate.spawn(_spawnCall,
+        [_mainSendPort!, _topicDoBackgrounds, _topicDiBuilder, _topicDoIt]);
+
+    return this;
+  }
+
+  bool _isDoing = false;
+
+  Future<void> ClosePublish() async {
+    _isDoing = false;
+    await _cleanUpToNextDoIt();
+    _timer?.cancel();
+  }
+
+  Future<void> _cleanUpToNextDoIt() async {
+    if (_mainIsolate != null) {
+      _mainIsolate!.kill(priority: Isolate.immediate);
+      _mainIsolate = null;
+      _insideSendPort = null;
+    }
+    var insideSubscription = _mapInsideSubscription[_topicDoIt];
+    if (insideSubscription != null) {
+      await insideSubscription.cancel();
+      insideSubscription = null;
+      _mapInsideSubscription.remove(_topicDoIt);
+    }
+    var insideReceiver = _mapInsideReceiver[_topicDoIt];
+    if (insideReceiver != null) {
+      insideReceiver = null;
+      _mapInsideReceiver.remove(_topicDoIt);
+    }
+  }
+}

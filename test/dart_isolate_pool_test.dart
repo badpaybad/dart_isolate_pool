@@ -50,7 +50,7 @@ Future<void> main() async {
       });
 
   var sendMany =
-  await IsolateSingleServe().withBackgroundFunction((p0, contextDi) async {
+      await IsolateSingleServe().withBackgroundFunction((p0, contextDi) async {
     print("Send many args to do in Bg: $p0");
     await Future.delayed(const Duration(seconds: 1));
 
@@ -76,6 +76,57 @@ Future<void> main() async {
   }
 
   sendMany.closeSendManyTimes();
+
+  print("--------------------- do publish isolate ");
+
+  var pubsub = IsolatePubSubServe();
+
+  pubsub.AddBgHandleAndOnResult("test", (args, dicontext) async {
+    //args come from pubsub.Publish
+    //this will run inside Isolate
+    var i = args[0];
+    var time = args[1];
+
+    return ["$i -> test -> $time"]; // will be result
+  }, (result) async {
+    //result when bgFunc done in Isolate,
+    //this will run in UI thread
+    print("result $result");
+  });
+
+  pubsub.AddBgHandleAndOnResult("test1", (args, dicontext) async {
+    //args come from pubsub.Publish
+    //this will run inside Isolate
+    var i = args[0];
+    var time = args[1];
+
+    var diTest = dicontext["TestObjectResult"];
+
+    return [
+      "$i -> TEST 1 -> $time",
+      diTest
+    ]; // will be result, just topic test1 got di obj in result, cause we add diBuilder
+  }, (result) async {
+    //result when bgFunc done in Isolate,
+    //this will run in UI thread
+    print("result $result");
+  });
+
+  Map<String, Future<Map<String, dynamic>> Function()> diBuilder =
+      <String, Future<Map<String, dynamic>> Function()>{};
+
+  diBuilder["test1"] = () async {
+    var mapDI = <String, TestObjectResult>{};
+    mapDI["TestObjectResult"] = TestObjectResult();
+    return mapDI;
+  };
+
+  pubsub.InitPublish(diBuilder: diBuilder);
+
+  for (var i in [1, 2, 3]) {
+    await pubsub.Publish("test", [i, DateTime.now()]);
+    await pubsub.Publish("test1", [i, DateTime.now()]);
+  }
 
   while (true) {
     await Future.delayed(const Duration(seconds: 5));
