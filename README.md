@@ -110,6 +110,8 @@ provide do some thing inside Isolate as background, and work similar pub sub .
 
   var pubsub = IsolatePubSubServe();
 
+  //should do: declare in your initState
+  
   pubsub.AddBgHandleAndOnResult("test", (args, dicontext) async {
     //args come from pubsub.Publish
     //this will run inside Isolate
@@ -122,7 +124,7 @@ provide do some thing inside Isolate as background, and work similar pub sub .
     //this will run in UI thread
     print("result $result");
   });
-
+  //should do: declare in your initState
   pubsub.AddBgHandleAndOnResult("test1", (args, dicontext) async {
     //args come from pubsub.Publish
     //this will run inside Isolate
@@ -140,7 +142,7 @@ provide do some thing inside Isolate as background, and work similar pub sub .
     //this will run in UI thread
     print("result $result");
   });
-
+  //should do: declare in your initState
   Map<String, Future<Map<String, dynamic>> Function()> diBuilder =
       <String, Future<Map<String, dynamic>> Function()>{};
 
@@ -149,10 +151,11 @@ provide do some thing inside Isolate as background, and work similar pub sub .
     mapDI["TestObjectResult"] = TestObjectResult();
     return mapDI;
   };
-
+  //should do: declare in your initState
   pubsub.InitPublish(diBuilder: diBuilder);
 
   for (var i in [1, 2, 3]) {
+    //call this to issues data to bg do, eg button click
     await pubsub.Publish("test", [i, DateTime.now()]);
     await pubsub.Publish("test1", [i, DateTime.now()]);
   }
@@ -160,23 +163,24 @@ provide do some thing inside Isolate as background, and work similar pub sub .
   await Future.delayed(const Duration(seconds: 2));
 
   print("------- add new DoInBackground, new DiBuilder AfterInit spawn");
-
+  //should do: declare in your initState
   pubsub.AddBackgroundFunction("test2", (args, diCollection) async {
     var diTest2 = diCollection["Test2Di"];
 
     return [args, diTest2];
   });
-
+  //should do: declare in your initState
   pubsub.AddDiBuilderFunction("test2", () async {
     var mapDI = <String, TestObjectResult>{};
     mapDI["Test2Di"] = TestObjectResult();
     return mapDI;
   });
-
+  //should do: declare in your initState
   pubsub.AddOnResultFunction("test2", (p0) async {
     print("Test2 resutl include DI $p0");
   });
 
+  //call this to issues data to bg do, eg button click
   await pubsub.Publish("test2", ["a", 1, "b"]);
 
 ````
