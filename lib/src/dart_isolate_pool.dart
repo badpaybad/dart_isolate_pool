@@ -287,6 +287,7 @@ class IsolatePoolServe {
   }
 }
 
+
 class IsolatePubSubServe {
   static IsolatePubSubServe instance =
   IsolatePubSubServe(topicDoIt: "singelton_IsolatePubSubServe");
@@ -336,7 +337,7 @@ class IsolatePubSubServe {
       }
     });
 
-    InitPublish();
+    _initPublish();
   }
 
   _sendData(String topic, dynamic data) async {
@@ -427,6 +428,9 @@ class IsolatePubSubServe {
 
   final Map<String, Queue<dynamic>> _dataPending = <String, Queue<dynamic>>{};
 
+  /// This function call when need pass data to AddBackgroundFunction.
+  /// eg: when user touch button
+  /// args data type similar to Isolate sendport support
   Future<void> Publish(String topic, dynamic data) async {
     if (topic.trim() == "") throw Exception("empty topic name");
     if (topic == _topicPing) {
@@ -468,6 +472,10 @@ class IsolatePubSubServe {
 
   static const _topicAddNewDoInBackgroundFunction = "__add_do_in_background__";
 
+  /// Should register in initState, it will called in side Isolate spawn
+  /// args from func Publish , support args similar to Isolate sendport
+  /// diCollection come from func AddDiBuilderFunction, AddDiBuilderFunction called inside Isolate spawn
+  /// [doInBackground:(args, diCollection) async{ return [result]; }]
   Future<IsolatePubSubServe> AddBackgroundFunction(String topic,
       Future<dynamic> Function(dynamic, dynamic) doInBackground) async {
     if (topic.trim() == "") throw Exception("empty topic name");
@@ -495,7 +503,9 @@ class IsolatePubSubServe {
 
     return this;
   }
-
+  /// UI thread. This funciton will use to handle result when AddBackgroundFunction done
+  /// onMessage:(result) async{ // if mounted setState }
+  ///
   Future<IsolatePubSubServe> AddOnResultFunction(
       String topic, Future<void> Function(dynamic) onMessage) async {
     if (topic.trim() == "") throw Exception("empty topic name");
@@ -518,6 +528,7 @@ class IsolatePubSubServe {
 
   static const _topicAddNewDiBuilder = "__add_di_builder__";
 
+  /// It will called once to build DI collection, for AddBackgroundFunction reuse collection
   Future<IsolatePubSubServe> AddDiBuilderFunction(
       String topic, Future<Map<String, dynamic>> Function() diBuilder) async {
     if (topic.trim() == "") throw Exception("empty topic name");
@@ -557,7 +568,7 @@ class IsolatePubSubServe {
 
   bool _spawned = false;
 
-  Future<IsolatePubSubServe> InitPublish(
+  Future<IsolatePubSubServe> _initPublish(
       {Map<String, Future<Map<String, dynamic>> Function()>? diBuilder}) async {
     if (diBuilder != null) {
       if (diBuilder.keys.any((element) =>
