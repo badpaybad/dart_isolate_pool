@@ -126,6 +126,28 @@ Future<void> main() async {
     await pubsub.Publish("test1", [i, DateTime.now()]);
   }
 
+  await Future.delayed(const Duration(seconds: 2));
+
+  print("------- add new DoInBackground, new DiBuilder AfterInit spawn");
+
+  pubsub.AddBackgroundFunction("test2", (args, diCollection) async {
+    var diTest2 = diCollection["Test2Di"];
+
+    return [args, diTest2];
+  });
+
+  pubsub.AddDiBuilderFunction("test2", () async {
+    var mapDI = <String, TestObjectResult>{};
+    mapDI["Test2Di"] = TestObjectResult();
+    return mapDI;
+  });
+
+  pubsub.AddOnResultFunction("test2", (p0) async {
+    print("Test2 resutl include DI $p0");
+  });
+
+  await pubsub.Publish("test2", ["a", 1, "b"]);
+
   while (true) {
     await Future.delayed(const Duration(seconds: 5));
     print("elapsed ${DateTime.now()}");
