@@ -1,5 +1,6 @@
 //import 'package:flutter_test/flutter_test.dart';
 
+import 'dart:math';
 import 'dart:typed_data';
 
 import 'package:dart_isolate_pool/shelf.dart';
@@ -84,9 +85,13 @@ Future<void> main() async {
 
   print("------- add new DoInBackground, new DiBuilder AfterInit spawn");
 
+  var rnd = Random(10);
+
   await pubsub.AddBackgroundFunction("test2", (args, diCollection) async {
     var diTest2 = diCollection["Test2Di"];
-
+    var fakeLongProcess=rnd.nextInt(5);
+    await Future.delayed(Duration(seconds: fakeLongProcess));
+    print("Random fakeLongProcess delay in: $fakeLongProcess seconds\r\n$args");
     return [args, diTest2];
   });
 
@@ -100,7 +105,10 @@ Future<void> main() async {
     print("PubSub -> Test2 resutl include DI $p0");
   });
 
-  await pubsub.Publish("test2", ["a", 1, "b"]);
+  for(var i =0;i<10;i++)
+  {
+    await pubsub.Publish("test2", [DateTime.now(), "test2-$i", "a", 1, "b"]);
+  }
 
   while (true) {
     await Future.delayed(const Duration(seconds: 5));
