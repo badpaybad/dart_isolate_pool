@@ -97,7 +97,7 @@ Future<void> main() async {
   });
 
   await pubsub.AddOnResultFunction("test2", (p0) async {
-    print("Test2 resutl include DI $p0");
+    print("PubSub -> Test2 resutl include DI $p0");
   });
 
   await pubsub.Publish("test2", ["a", 1, "b"]);

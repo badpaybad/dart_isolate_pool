@@ -7,7 +7,6 @@ import 'dart:io';
 import 'dart:isolate';
 import 'dart:typed_data';
 
-
 class IsolateSingleServe {
   //static IsolateSingleServe instance = IsolateSingleServe._();
 
@@ -72,15 +71,15 @@ class IsolateSingleServe {
   SendPort? _mainSendPort;
 
   final Map<String, Future<void> Function(dynamic)?> _mapResultHandle =
-  <String, Future<void> Function(dynamic)?>{};
+      <String, Future<void> Function(dynamic)?>{};
 
   final Map<String, Future<dynamic> Function(dynamic, Map<String, dynamic>)>
-  _mapHandleWithDi =
-  <String, Future<dynamic> Function(dynamic, Map<String, dynamic>)>{};
+      _mapHandleWithDi =
+      <String, Future<dynamic> Function(dynamic, Map<String, dynamic>)>{};
 
   _createIsolate(
       Future<dynamic> Function(dynamic, Map<String, dynamic>)
-      doInBackgroundWithDi,
+          doInBackgroundWithDi,
       Future<Map<String, dynamic>> Function() diBuilder) async {
     _mainIsolate = await Isolate.spawn(_spawnCall,
         [_mainSendPort!, doInBackgroundWithDi, _topicDoIt, diBuilder]);
@@ -94,23 +93,23 @@ class IsolateSingleServe {
   }
 
   static final Map<String, StreamSubscription> _mapInsideSubscription =
-  <String, StreamSubscription>{};
+      <String, StreamSubscription>{};
   static final Map<String, ReceivePort> _mapInsideReceiver =
-  <String, ReceivePort>{};
+      <String, ReceivePort>{};
 
   static _spawnCall(
       dynamic mainSendPort_doInBackgroundWithDi_topic_diBuilder) async {
     SendPort mainSendPort =
-    mainSendPort_doInBackgroundWithDi_topic_diBuilder[0];
+        mainSendPort_doInBackgroundWithDi_topic_diBuilder[0];
 
     Future<dynamic> Function(dynamic, Map<String, dynamic>)
-    doInBackgroundWithDi =
-    mainSendPort_doInBackgroundWithDi_topic_diBuilder[1];
+        doInBackgroundWithDi =
+        mainSendPort_doInBackgroundWithDi_topic_diBuilder[1];
 
     var topicDoit = mainSendPort_doInBackgroundWithDi_topic_diBuilder[2];
 
     Future<Map<String, dynamic>> Function() diBuilder =
-    mainSendPort_doInBackgroundWithDi_topic_diBuilder[3];
+        mainSendPort_doInBackgroundWithDi_topic_diBuilder[3];
 
     Map<String, dynamic> diCollection = await diBuilder();
 
@@ -144,8 +143,8 @@ class IsolateSingleServe {
 
   Future<void> doOnce(
       {required dynamic dataToDo,
-        required Future<dynamic> Function(dynamic) doInBackground,
-        Future<void> Function(dynamic)? onResult}) async {
+      required Future<dynamic> Function(dynamic) doInBackground,
+      Future<void> Function(dynamic)? onResult}) async {
     _isSendOnce = true;
     _isDone = false;
     while (_isDoing) {
@@ -165,9 +164,10 @@ class IsolateSingleServe {
 
   IsolateSingleServe withBackgroundFunction(
       Future<dynamic> Function(dynamic, Map<String, dynamic>)
-      doInBackgroundWithDi) {
-    if(_isDoing){
-      throw Exception("Isolate spawned, in progress do job, can not change. Can call forceClose, can cause lost data is processing");
+          doInBackgroundWithDi) {
+    if (_isDoing) {
+      throw Exception(
+          "Isolate spawned, in progress do job, can not change. Can call forceClose, can cause lost data is processing");
     }
     _mapHandleWithDi[_topicDoIt] = doInBackgroundWithDi;
     return this;
@@ -192,13 +192,15 @@ class IsolateSingleServe {
     await _createIsolate(
         doInBackgroundWithDi, diBuilder ?? () async => <String, dynamic>{});
 
-    print("initToSendManyDatas, then call sendData many times in need, then HAVE TO call closeToSendManyDatas to release Isolate for other");
+    print(
+        "initToSendManyDatas, then call sendData many times in need, then HAVE TO call closeToSendManyDatas to release Isolate for other");
     return this;
   }
 
   Future<void> sendData(dynamic dataToDo) async {
-    if(_isSendOnce) {
-      throw Exception("If call one times, call function doOnce, To send many time -> Have to call this function first: initToSendManyDatas. "
+    if (_isSendOnce) {
+      throw Exception(
+          "If call one times, call function doOnce, To send many time -> Have to call this function first: initToSendManyDatas. "
           "then when done call closeToSendManyDatas to release Isolate for other");
     }
     // else{
@@ -222,13 +224,12 @@ class IsolateSingleServe {
   }
 }
 
-
 class IsolatePoolServe {
   static IsolatePoolServe instance = IsolatePoolServe._();
 
   IsolatePoolServe._() {
-    int numOfW=Platform.numberOfProcessors~/2;
-    if (numOfW<1) numOfW=1;
+    int numOfW = Platform.numberOfProcessors ~/ 2;
+    if (numOfW < 1) numOfW = 1;
 
     for (var i = 0; i < numOfW; i++) {
       var key = "$i";
@@ -236,42 +237,41 @@ class IsolatePoolServe {
     }
     print("Worker IsolatePoolServe: ${_worker.length} worker(s)");
 
-    _timer =
-        Timer.periodic(const Duration(microseconds: 1), (timer) async {
-          var freeWorkers = _worker.values
-              .where((element) => element.isRunning() == false)
-              .toList();
-          var len = freeWorkers.length;
+    _timer = Timer.periodic(const Duration(microseconds: 1), (timer) async {
+      var freeWorkers = _worker.values
+          .where((element) => element.isRunning() == false)
+          .toList();
+      var len = freeWorkers.length;
 
-          for (var i = 0; i < len; i++) {
-            if (_pendingDoIt.isNotEmpty) {
-              var td = _pendingDoIt.removeFirst();
-              if (td != null) {
-                dynamic dataToDo = td[0];
-                Future<dynamic> Function(dynamic) doInBackground = td[1];
-                Future<void> Function(dynamic)? onResult = td[2];
-                var worker = freeWorkers[i];
-                worker.doOnce(
-                    dataToDo: dataToDo,
-                    doInBackground: doInBackground,
-                    onResult: onResult);
-              }
-            }
+      for (var i = 0; i < len; i++) {
+        if (_pendingDoIt.isNotEmpty) {
+          var td = _pendingDoIt.removeFirst();
+          if (td != null) {
+            dynamic dataToDo = td[0];
+            Future<dynamic> Function(dynamic) doInBackground = td[1];
+            Future<void> Function(dynamic)? onResult = td[2];
+            var worker = freeWorkers[i];
+            worker.doOnce(
+                dataToDo: dataToDo,
+                doInBackground: doInBackground,
+                onResult: onResult);
           }
-        });
+        }
+      }
+    });
   }
 
   Timer? _timer;
 
   final Map<String, IsolateSingleServe> _worker =
-  <String, IsolateSingleServe>{};
+      <String, IsolateSingleServe>{};
 
   final Queue<dynamic> _pendingDoIt = Queue();
 
   Future<void> doOnce(
       {required dynamic dataToDo,
-        required Future<dynamic> Function(dynamic) doInBackground,
-        Future<void> Function(dynamic)? onResult}) async {
+      required Future<dynamic> Function(dynamic) doInBackground,
+      Future<void> Function(dynamic)? onResult}) async {
     _pendingDoIt.add([dataToDo, doInBackground, onResult]);
   }
 
@@ -287,10 +287,9 @@ class IsolatePoolServe {
   }
 }
 
-
 class IsolatePubSubServe {
   static IsolatePubSubServe instance =
-  IsolatePubSubServe(topicDoIt: "singelton_IsolatePubSubServe");
+      IsolatePubSubServe(topicDoIt: "singelton_IsolatePubSubServe");
 
   String _topicDoIt = "DoIt";
   static const String _topicPing = "____ping____";
@@ -302,9 +301,9 @@ class IsolatePubSubServe {
   SendPort? _mainSendPort;
 
   static final Map<String, StreamSubscription> _mapInsideSubscription =
-  <String, StreamSubscription>{};
+      <String, StreamSubscription>{};
   static final Map<String, ReceivePort> _mapInsideReceiver =
-  <String, ReceivePort>{};
+      <String, ReceivePort>{};
 
   IsolatePubSubServe({String topicDoIt = "DoIt"}) {
     _topicDoIt = "${topicDoIt}_${DateTime.now().microsecondsSinceEpoch}";
@@ -350,26 +349,26 @@ class IsolatePubSubServe {
   Timer? _timer;
 
   final Map<String, Future<dynamic> Function(dynamic, dynamic)>
-  _topicDoBackgrounds =
-  <String, Future<dynamic> Function(dynamic, dynamic)>{};
+      _topicDoBackgrounds =
+      <String, Future<dynamic> Function(dynamic, dynamic)>{};
 
   final Map<String, Future<void> Function(dynamic)> _topicOnResults =
-  <String, Future<void> Function(dynamic)>{};
+      <String, Future<void> Function(dynamic)>{};
 
   Map<String, Future<Map<String, dynamic>> Function()> _topicDiBuilder =
-  <String, Future<Map<String, dynamic>> Function()>{};
+      <String, Future<Map<String, dynamic>> Function()>{};
 
   static _spawnCall(
       dynamic mainSendPort_doInBackgroundWithDi_diBuilder_topicDoIt) async {
     SendPort mainSendPort =
-    mainSendPort_doInBackgroundWithDi_diBuilder_topicDoIt[0];
+        mainSendPort_doInBackgroundWithDi_diBuilder_topicDoIt[0];
 
     Map<String, Future<dynamic> Function(dynamic, dynamic)>
-    doInBackgroundWithDi =
-    mainSendPort_doInBackgroundWithDi_diBuilder_topicDoIt[1];
+        doInBackgroundWithDi =
+        mainSendPort_doInBackgroundWithDi_diBuilder_topicDoIt[1];
 
     Map<String, Future<Map<String, dynamic>> Function()> diBuilder =
-    mainSendPort_doInBackgroundWithDi_diBuilder_topicDoIt[2];
+        mainSendPort_doInBackgroundWithDi_diBuilder_topicDoIt[2];
 
     String topicDoit = mainSendPort_doInBackgroundWithDi_diBuilder_topicDoIt[3];
 
@@ -380,7 +379,7 @@ class IsolatePubSubServe {
     var insideSendPort = insideReceiver.sendPort;
 
     Map<String, Map<String, dynamic>> diCollectionByTopic =
-    <String, Map<String, dynamic>>{};
+        <String, Map<String, dynamic>>{};
 
     for (var diFuncKey in diBuilder.keys) {
       var diFunc = diBuilder[diFuncKey];
@@ -409,11 +408,13 @@ class IsolatePubSubServe {
 
       var doInBgOfTopic = doInBackgroundWithDi[topicToProcess];
       var diCollection =
-      diCollectionByTopic[topicToProcess] ??= <String, dynamic>{};
+          diCollectionByTopic[topicToProcess] ??= <String, dynamic>{};
 
-      var result = await doInBgOfTopic!(dataToProcess, diCollection);
-
-      mainSendPort.send([insideSendPort, topicToProcess, result]);
+      //Isolate spawned have own sync context, event loop,
+      // try to use async =))) Future do then no wait.
+      // hope no block next do
+      _doThenSendResultToMainThread(mainSendPort, insideSendPort,
+          topicToProcess, dataToProcess, diCollection, doInBgOfTopic!);
     });
 
     if (_mapInsideSubscription.containsKey(topicDoit)) {}
@@ -424,6 +425,18 @@ class IsolatePubSubServe {
       _topicPing,
       "_insideSendPort forward to main process, to do send data to do in background"
     ]);
+  }
+
+  static Future<void> _doThenSendResultToMainThread(
+      SendPort cloneMainSendPort,
+      SendPort cloneInsideSendport,
+      String cloneTopic,
+      dynamic cloneData,
+      Map<String, dynamic> cloneDiCollection,
+      Future<dynamic> Function(dynamic, dynamic) cloneBgFunc) async {
+    var result = await cloneBgFunc(cloneData, cloneDiCollection);
+
+    cloneMainSendPort.send([cloneInsideSendport, cloneTopic, result]);
   }
 
   final Map<String, Queue<dynamic>> _dataPending = <String, Queue<dynamic>>{};
@@ -503,6 +516,7 @@ class IsolatePubSubServe {
 
     return this;
   }
+
   /// UI thread. This funciton will use to handle result when AddBackgroundFunction done
   /// onMessage:(result) async{ // if mounted setState }
   ///
@@ -572,7 +586,7 @@ class IsolatePubSubServe {
       {Map<String, Future<Map<String, dynamic>> Function()>? diBuilder}) async {
     if (diBuilder != null) {
       if (diBuilder.keys.any((element) =>
-      element == _topicPing ||
+          element == _topicPing ||
           element == _topicAddNewDiBuilder ||
           element == _topicAddNewDoInBackgroundFunction)) {
         throw Exception(
