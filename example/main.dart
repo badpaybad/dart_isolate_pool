@@ -93,12 +93,13 @@ Future<void> main() async {
     var xxx = TestObjectResult();
     xxx.name = "Test2Di after spawn init";
     mapDI["Test2Di"] = xxx;
-
+  //work in isolate
     print("AddDiBuilderFunction do logic with envs: $envs");
     return mapDI;
   });
 
   await pubsub.AddBackgroundFunction("test2", (args, diCollection, envs) async {
+    //work in isolate
     var diTest2 = diCollection["Test2Di"];
     print("AddBackgroundFunction do logic with envs: $envs");
     await Future.delayed(const Duration(seconds: 3));
@@ -106,22 +107,23 @@ Future<void> main() async {
   });
 
   await pubsub.AddOnResultFunction("test2", (p0, envs) async {
+    //work in ui thread
     print("Test2 resutl include DI: $p0 with envs: $envs");
   });
 
   await pubsub.AddBackgroundFunction("test3", (args, diCollection, envs) async {
-
+    //work in isolate
     print("test3 AddBackgroundFunction do logic with envs: $envs");
     return [args];
   });
 
   await pubsub.AddOnResultFunction("test3", (p0, envs) async {
+    //work in ui thread
     print("test3 resutl include DI: $p0 with envs: $envs");
   });
 
   await pubsub.Publish("test2", ["a", 1, "b"]);
   await pubsub.Publish("test3", ["this is test 3", 1, 0.5]);
-
   // eg on button click Do this
   await pubsub.Publish("test2", ["a", 1, "b"]);
 
