@@ -289,7 +289,7 @@ class IsolatePoolServe {
 
 class IsolatePubSubServe {
   static IsolatePubSubServe instance =
-      IsolatePubSubServe(topicDoIt: "singelton_IsolatePubSubServe");
+  IsolatePubSubServe(topicDoIt: "singelton_IsolatePubSubServe");
 
   String _topicDoIt = "DoIt";
   static const String _topicPing = "____ping____";
@@ -301,9 +301,9 @@ class IsolatePubSubServe {
   SendPort? _mainSendPort;
 
   static final Map<String, StreamSubscription> _mapInsideSubscription =
-      <String, StreamSubscription>{};
+  <String, StreamSubscription>{};
   static final Map<String, ReceivePort> _mapInsideReceiver =
-      <String, ReceivePort>{};
+  <String, ReceivePort>{};
 
   IsolatePubSubServe({String topicDoIt = "DoIt"}) {
     _topicDoIt = "${topicDoIt}_${DateTime.now().microsecondsSinceEpoch}";
@@ -319,10 +319,11 @@ class IsolatePubSubServe {
 
       dynamic data = message[2];
 
-      Future<void> Function(dynamic)? onResult = _topicOnResults[topic];
+      Future<void> Function(dynamic, Map<String, String>)? onResult =
+      _topicOnResults[topic];
 
       if (onResult != null) {
-        onResult(data);
+        onResult(data, _topicEnvs);
       }
     });
 
@@ -348,29 +349,40 @@ class IsolatePubSubServe {
 
   Timer? _timer;
 
-  final Map<String, Future<dynamic> Function(dynamic, dynamic)>
-      _topicDoBackgrounds =
-      <String, Future<dynamic> Function(dynamic, dynamic)>{};
+  final Map<String,
+      Future<dynamic> Function(dynamic, dynamic, Map<String, String>)>
+  _topicDoBackgrounds = <String,
+      Future<dynamic> Function(dynamic, dynamic, Map<String, String>)>{};
 
-  final Map<String, Future<void> Function(dynamic)> _topicOnResults =
-      <String, Future<void> Function(dynamic)>{};
+  final Map<String, Future<void> Function(dynamic, Map<String, String>)>
+  _topicOnResults =
+  <String, Future<void> Function(dynamic, Map<String, String>)>{};
 
-  Map<String, Future<Map<String, dynamic>> Function()> _topicDiBuilder =
-      <String, Future<Map<String, dynamic>> Function()>{};
+  Map<String, Future<Map<String, dynamic>> Function(Map<String, String>)>
+  _topicDiBuilder =
+  <String, Future<Map<String, dynamic>> Function(Map<String, String>)>{};
+
+  final Map<String, String> _topicEnvs = <String, String>{};
 
   static _spawnCall(
-      dynamic mainSendPort_doInBackgroundWithDi_diBuilder_topicDoIt) async {
+      dynamic
+      mainSendPort_doInBackgroundWithDi_diBuilder_topicDoIt_envs) async {
     SendPort mainSendPort =
-        mainSendPort_doInBackgroundWithDi_diBuilder_topicDoIt[0];
+    mainSendPort_doInBackgroundWithDi_diBuilder_topicDoIt_envs[0];
 
-    Map<String, Future<dynamic> Function(dynamic, dynamic)>
-        doInBackgroundWithDi =
-        mainSendPort_doInBackgroundWithDi_diBuilder_topicDoIt[1];
+    Map<String, Future<dynamic> Function(dynamic, dynamic, Map<String, String>)>
+    doInBackgroundWithDi =
+    mainSendPort_doInBackgroundWithDi_diBuilder_topicDoIt_envs[1];
 
-    Map<String, Future<Map<String, dynamic>> Function()> diBuilder =
-        mainSendPort_doInBackgroundWithDi_diBuilder_topicDoIt[2];
+    Map<String, Future<Map<String, dynamic>> Function(Map<String, String>)>
+    diBuilder =
+    mainSendPort_doInBackgroundWithDi_diBuilder_topicDoIt_envs[2];
 
-    String topicDoit = mainSendPort_doInBackgroundWithDi_diBuilder_topicDoIt[3];
+    String topicDoit =
+    mainSendPort_doInBackgroundWithDi_diBuilder_topicDoIt_envs[3];
+
+    Map<String, String> envs =
+    mainSendPort_doInBackgroundWithDi_diBuilder_topicDoIt_envs[4];
 
     var insideReceiver = ReceivePort(topicDoit);
     if (_mapInsideReceiver.containsKey(topicDoit)) {}
@@ -378,13 +390,16 @@ class IsolatePubSubServe {
     _mapInsideReceiver[topicDoit] = insideReceiver;
     var insideSendPort = insideReceiver.sendPort;
 
+    Map<String, String> allEnvs = <String, String>{};
+    allEnvs.addAll(envs);
+
     Map<String, Map<String, dynamic>> diCollectionByTopic =
-        <String, Map<String, dynamic>>{};
+    <String, Map<String, dynamic>>{};
 
     for (var diFuncKey in diBuilder.keys) {
       var diFunc = diBuilder[diFuncKey];
       if (diFunc != null) {
-        diCollectionByTopic[diFuncKey] = await diFunc();
+        diCollectionByTopic[diFuncKey] = await diFunc(allEnvs);
       }
     }
 
@@ -393,14 +408,25 @@ class IsolatePubSubServe {
 
       if (topicToProcess == _topicAddNewDoInBackgroundFunction) {
         String topic = message[1];
-        Future<dynamic> Function(dynamic, dynamic) newDoInBgWithDi = message[2];
+        Future<dynamic> Function(dynamic, dynamic, Map<String, String>)
+        newDoInBgWithDi = message[2];
         doInBackgroundWithDi[topic] = newDoInBgWithDi;
         return;
       }
       if (topicToProcess == _topicAddNewDiBuilder) {
         String topic = message[1];
-        Future<Map<String, dynamic>> Function() newIdBuilder = message[2];
-        diCollectionByTopic[topic] = await newIdBuilder();
+        Future<Map<String, dynamic>> Function(Map<String, String>)
+        newIdBuilder = message[2];
+        diCollectionByTopic[topic] = await newIdBuilder(allEnvs);
+        return;
+      }
+
+      if (topicToProcess == _topicAddNewEnv) {
+        String topic = message[1];
+        Map<String, String> env = message[2];
+
+        allEnvs.addAll(env);
+
         return;
       }
 
@@ -408,13 +434,13 @@ class IsolatePubSubServe {
 
       var doInBgOfTopic = doInBackgroundWithDi[topicToProcess];
       var diCollection =
-          diCollectionByTopic[topicToProcess] ??= <String, dynamic>{};
+      diCollectionByTopic[topicToProcess] ??= <String, dynamic>{};
 
       //Isolate spawned have own sync context, event loop,
       // try to use async =))) Future do then no wait.
       // hope no block next do
       _doThenSendResultToMainThread(mainSendPort, insideSendPort,
-          topicToProcess, dataToProcess, diCollection, doInBgOfTopic!);
+          topicToProcess, dataToProcess, diCollection, allEnvs, doInBgOfTopic!);
     });
 
     if (_mapInsideSubscription.containsKey(topicDoit)) {}
@@ -433,8 +459,10 @@ class IsolatePubSubServe {
       String cloneTopic,
       dynamic cloneData,
       Map<String, dynamic> cloneDiCollection,
-      Future<dynamic> Function(dynamic, dynamic) cloneBgFunc) async {
-    var result = await cloneBgFunc(cloneData, cloneDiCollection);
+      Map<String, String> allEnvs,
+      Future<dynamic> Function(dynamic, dynamic, Map<String, String>)
+      cloneBgFunc) async {
+    var result = await cloneBgFunc(cloneData, cloneDiCollection, allEnvs);
 
     cloneMainSendPort.send([cloneInsideSendport, cloneTopic, result]);
   }
@@ -489,8 +517,10 @@ class IsolatePubSubServe {
   /// args from func Publish , support args similar to Isolate sendport
   /// diCollection come from func AddDiBuilderFunction, AddDiBuilderFunction called inside Isolate spawn
   /// [doInBackground:(args, diCollection) async{ return [result]; }]
-  Future<IsolatePubSubServe> AddBackgroundFunction(String topic,
-      Future<dynamic> Function(dynamic, dynamic) doInBackground) async {
+  Future<IsolatePubSubServe> AddBackgroundFunction(
+      String topic,
+      Future<dynamic> Function(dynamic, dynamic, Map<String, String>)
+      doInBackground) async {
     if (topic.trim() == "") throw Exception("empty topic name");
     if (topic == _topicPing) {
       throw Exception("Invalid topic, should not: $_topicPing");
@@ -501,6 +531,9 @@ class IsolatePubSubServe {
     if (topic == _topicAddNewDoInBackgroundFunction) {
       throw Exception(
           "Invalid topic, should not: $_topicAddNewDoInBackgroundFunction");
+    }
+    if (topic == _topicAddNewEnv) {
+      throw Exception("Invalid topic, should not: $_topicAddNewEnv");
     }
     await _ensureSpawn();
 
@@ -520,8 +553,8 @@ class IsolatePubSubServe {
   /// UI thread. This funciton will use to handle result when AddBackgroundFunction done
   /// onMessage:(result) async{ // if mounted setState }
   ///
-  Future<IsolatePubSubServe> AddOnResultFunction(
-      String topic, Future<void> Function(dynamic) onMessage) async {
+  Future<IsolatePubSubServe> AddOnResultFunction(String topic,
+      Future<void> Function(dynamic, Map<String, String>) onMessage) async {
     if (topic.trim() == "") throw Exception("empty topic name");
     if (topic == _topicPing) {
       throw Exception("Invalid topic, should not: $_topicPing");
@@ -532,6 +565,9 @@ class IsolatePubSubServe {
     if (topic == _topicAddNewDoInBackgroundFunction) {
       throw Exception(
           "Invalid topic, should not: $_topicAddNewDoInBackgroundFunction");
+    }
+    if (topic == _topicAddNewEnv) {
+      throw Exception("Invalid topic, should not: $_topicAddNewEnv");
     }
     await _ensureSpawn();
 
@@ -544,7 +580,9 @@ class IsolatePubSubServe {
 
   /// It will called once to build DI collection, for AddBackgroundFunction reuse collection
   Future<IsolatePubSubServe> AddDiBuilderFunction(
-      String topic, Future<Map<String, dynamic>> Function() diBuilder) async {
+      String topic,
+      Future<Map<String, dynamic>> Function(Map<String, String>)
+      diBuilder) async {
     if (topic.trim() == "") throw Exception("empty topic name");
     if (topic == _topicPing) {
       throw Exception("Invalid topic, should not: $_topicPing");
@@ -556,7 +594,9 @@ class IsolatePubSubServe {
       throw Exception(
           "Invalid topic, should not: $_topicAddNewDoInBackgroundFunction");
     }
-
+    if (topic == _topicAddNewEnv) {
+      throw Exception("Invalid topic, should not: $_topicAddNewEnv");
+    }
     await _ensureSpawn();
 
     _topicDiBuilder[topic] = diBuilder;
@@ -565,6 +605,29 @@ class IsolatePubSubServe {
       await Future.delayed(const Duration(microseconds: 1));
     }
     _insideSendPort!.send([_topicAddNewDiBuilder, topic, diBuilder]);
+
+    await Future.delayed(const Duration(seconds: 1));
+
+    return this;
+  }
+
+  static const _topicAddNewEnv = "__add_env__";
+
+  Future<IsolatePubSubServe> AddEnvs(Map<String, String> env) async {
+    for (var kenv in _topicEnvs.keys) {
+      if (env.containsKey(kenv)) {
+        throw Exception("Exist key in envs: $kenv");
+      }
+    }
+
+    await _ensureSpawn();
+
+    _topicEnvs.addAll(env);
+
+    while (_insideSendPort == null) {
+      await Future.delayed(const Duration(microseconds: 1));
+    }
+    _insideSendPort!.send([_topicAddNewEnv, _topicAddNewEnv, env]);
 
     await Future.delayed(const Duration(seconds: 1));
 
@@ -583,10 +646,11 @@ class IsolatePubSubServe {
   bool _spawned = false;
 
   Future<IsolatePubSubServe> _initPublish(
-      {Map<String, Future<Map<String, dynamic>> Function()>? diBuilder}) async {
+      {Map<String, Future<Map<String, dynamic>> Function(Map<String, String>)>?
+      diBuilder}) async {
     if (diBuilder != null) {
       if (diBuilder.keys.any((element) =>
-          element == _topicPing ||
+      element == _topicPing ||
           element == _topicAddNewDiBuilder ||
           element == _topicAddNewDoInBackgroundFunction)) {
         throw Exception(
@@ -596,11 +660,16 @@ class IsolatePubSubServe {
 
     _isDoing = true;
 
-    _topicDiBuilder =
-        diBuilder ?? <String, Future<Map<String, dynamic>> Function()>{};
+    _topicDiBuilder = diBuilder ??
+        <String, Future<Map<String, dynamic>> Function(Map<String, String>)>{};
 
-    _mainIsolate = await Isolate.spawn(_spawnCall,
-        [_mainSendPort!, _topicDoBackgrounds, _topicDiBuilder, _topicDoIt]);
+    _mainIsolate = await Isolate.spawn(_spawnCall, [
+      _mainSendPort!,
+      _topicDoBackgrounds,
+      _topicDiBuilder,
+      _topicDoIt,
+      _topicEnvs
+    ]);
 
     _spawned = true;
 
