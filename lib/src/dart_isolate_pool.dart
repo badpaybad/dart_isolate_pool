@@ -616,7 +616,7 @@ class IsolatePubSubServe {
   Future<IsolatePubSubServe> AddEnvs(Map<String, String> env) async {
     for (var kenv in _topicEnvs.keys) {
       if (env.containsKey(kenv)) {
-        throw Exception("Exist key in envs: $kenv");
+        print ("Exist key in envs: $kenv");
       }
     }
 
